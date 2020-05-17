@@ -19,7 +19,8 @@ public class InputAnalyzingTest {
 	private static final String TEST_SECONDNAME = "James";
 	private static final String TEST_FORENAME = join(TEST_FIRSTNAME, TEST_SECONDNAME);
 	private static final String TEST_LASTNAME = "Potter";
-	private static final String TEST_NAME = join(TEST_FORENAME, TEST_LASTNAME);
+	private static final String TEST_FULLNAME = join(TEST_FORENAME, TEST_LASTNAME);
+	private static final String TEST_NICKNAME = "Undesirable No 1";
 
 	private static final String TEST_HOUSENR = "4";
 	private static final String TEST_STREET_1 = "Privet";
@@ -38,13 +39,14 @@ public class InputAnalyzingTest {
 		return sb.toString();
 	}
 
-	private static enum InputGroups {
+	private enum InputGroups {
 		FULLNAME, FULLADDRESS;
 	}
 
-	private static enum InputParts implements InputPart {
+	private enum InputParts implements InputPart {
 		FORENAME("[A-Z]{1}[A-Za-z]*( [A-Z]{1}[A-Za-z]*)*"),
 		LASTNAME("[A-Z]{1}[A-Za-z]*"),
+		UNDESIRABLE_NUMBER("Undesirable No \\d+"),
 
 		HOUSENR("\\d+"),
 		STREET("[A-Z]{1}[A-Za-z]*( [A-Z]{1}[A-Za-z]*)*"),
@@ -52,7 +54,7 @@ public class InputAnalyzingTest {
 
 		private final String matcher;
 
-		private InputParts(String matcher) {
+		InputParts(String matcher) {
 			this.matcher = matcher;
 		}
 
@@ -67,40 +69,49 @@ public class InputAnalyzingTest {
 	@Before
 	public void before() {
 		this.analyzer = InputAnalyzer
-				.forGroup(InputGroups.FULLNAME,
-						InputGroup.forPart(InputParts.FORENAME).andPart(InputParts.LASTNAME).build())
-				.andGroup(InputGroups.FULLADDRESS, InputGroup.forPart(InputParts.HOUSENR, true)
-						.andPart(InputParts.STREET).andPart(InputParts.CITY).build())
+				.forGroup(InputGroups.FULLNAME, InputGroup.
+						forPart(InputParts.FORENAME).
+						andPart(InputParts.UNDESIRABLE_NUMBER, PartOccurrenceMode.EXCLUSIVE).
+						andPart(InputParts.LASTNAME).build())
+				.andGroup(InputGroups.FULLADDRESS, InputGroup.
+						forPart(InputParts.HOUSENR, PartOccurrenceMode.OPTIONAL).
+						andPart(InputParts.STREET).
+						andPart(InputParts.CITY).build())
 				.build();
 	}
 
 	@Test
 	public void testMandatoryMatching() {
-		assertTrue(this.analyzer.matchesGroup(TEST_NAME, InputGroups.FULLNAME));
-		assertFalse(this.analyzer.matchesGroup(TEST_ADDRESS, InputGroups.FULLNAME));
+		assertTrue(this.analyzer.matchesGroup(TEST_FULLNAME, InputGroups.FULLNAME));
+	}
+
+	@Test
+	public void testExclusiveMatching() {
+		assertTrue(this.analyzer.matchesGroup(TEST_NICKNAME, InputGroups.FULLNAME));
 	}
 
 	@Test
 	public void testOptionalMatching() {
-		assertTrue(this.analyzer.matchesGroup(TEST_NAME, InputGroups.FULLADDRESS));
 		assertTrue(this.analyzer.matchesGroup(TEST_ADDRESS, InputGroups.FULLADDRESS));
 	}
 
 	@Test
 	public void testAnyMatching() {
-		assertTrue(this.analyzer.matches(TEST_NAME));
+		assertTrue(this.analyzer.matches(TEST_FULLNAME));
+		assertTrue(this.analyzer.matches(TEST_NICKNAME));
 		assertTrue(this.analyzer.matches(TEST_ADDRESS));
 	}
 
 	@Test
 	public void testMatchFinding() {
-		assertEquals(EnumSet.of(InputGroups.FULLNAME, InputGroups.FULLADDRESS), this.analyzer.matching(TEST_NAME));
+		assertEquals(EnumSet.of(InputGroups.FULLNAME, InputGroups.FULLADDRESS), this.analyzer.matching(TEST_FULLNAME));
+		assertEquals(EnumSet.of(InputGroups.FULLNAME), this.analyzer.matching(TEST_NICKNAME));
 		assertEquals(EnumSet.of(InputGroups.FULLADDRESS), this.analyzer.matching(TEST_ADDRESS));
 	}
 
 	@Test
 	public void testMandatoryAnalyzing() {
-		assertEquals(getNameSplitByNameGroupPossibilities(), this.analyzer.analyzeForGroup(TEST_NAME, InputGroups.FULLNAME));
+		assertEquals(getNameSplitByNameGroupPossibilities(), this.analyzer.analyzeForGroup(TEST_FULLNAME, InputGroups.FULLNAME));
 		assertEquals(getAddressSplitByNameGroupPossibilities(), this.analyzer.analyzeForGroup(TEST_ADDRESS, InputGroups.FULLNAME));
 	}
 
@@ -116,8 +127,19 @@ public class InputAnalyzingTest {
 	}
 
 	@Test
+	public void testExclusiveAnalyzing() {
+		assertEquals(getNickSplitByNameGroupPossibilities(), this.analyzer.analyzeForGroup(TEST_NICKNAME, InputGroups.FULLNAME));
+	}
+
+	private List<Map<InputParts, String>> getNickSplitByNameGroupPossibilities() {
+		Map<InputParts, String> possibility = new HashMap<>();
+		possibility.put(InputParts.UNDESIRABLE_NUMBER, TEST_NICKNAME);
+		return Arrays.asList(possibility);
+	}
+
+	@Test
 	public void testOptionalAnalyzing() {
-		assertEquals(getNameSplitByAddressGroupPossibilities(), this.analyzer.analyzeForGroup(TEST_NAME, InputGroups.FULLADDRESS));
+		assertEquals(getNameSplitByAddressGroupPossibilities(), this.analyzer.analyzeForGroup(TEST_FULLNAME, InputGroups.FULLADDRESS));
 		assertEquals(getAddressSplitByAddressGroupPossibilities(), this.analyzer.analyzeForGroup(TEST_ADDRESS, InputGroups.FULLADDRESS));
 	}
 
@@ -158,7 +180,12 @@ public class InputAnalyzingTest {
 		nameSplitPossibilities.put(InputGroups.FULLNAME, getNameSplitByNameGroupPossibilities());
 		nameSplitPossibilities.put(InputGroups.FULLADDRESS, getNameSplitByAddressGroupPossibilities());
 		
-		assertEquals(nameSplitPossibilities, this.analyzer.analyze(TEST_NAME));
+		assertEquals(nameSplitPossibilities, this.analyzer.analyze(TEST_FULLNAME));
+
+		Map<InputGroups, List<Map<InputParts, String>>> nickSplitPossibilities = new HashMap<>();
+		nickSplitPossibilities.put(InputGroups.FULLNAME, getNickSplitByNameGroupPossibilities());
+
+		assertEquals(nickSplitPossibilities, this.analyzer.analyze(TEST_NICKNAME));
 		
 		Map<InputGroups, List<Map<InputParts, String>>> addressSplitPossibilities = new HashMap<>();
 		addressSplitPossibilities.put(InputGroups.FULLADDRESS, getAddressSplitByAddressGroupPossibilities());
