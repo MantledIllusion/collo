@@ -35,7 +35,7 @@ import com.mantledillusion.data.collo.InputGroup.InputGroupBuilder;
  * <p>
  * 1-&gt;n parts of such an {@link Enum} can define an {@link InputGroup} using
  * an {@link InputGroupBuilder} started with {@link InputGroup#forPart(Enum)} or
- * {@link InputGroup#forPart(Enum, boolean)}.
+ * {@link InputGroup#forPart(Enum, PartOccurrenceMode)}.
  */
 public interface InputPart {
 
