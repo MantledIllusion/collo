@@ -3,9 +3,18 @@ Collo is a lightweight library for string input partitioning and grouping.
 
 Collospermum Hastatum, also known as Perching Lily, is a New Zealand plant that uses its arching flax-like leaves for filtering water out of thin air, detouring it into channels to its base for consumption.
 
+```xml
+<dependency>
+    <groupId>com.mantledillusion.data</groupId>
+    <artifactId>collo</artifactId>
+</dependency>
+```
+
+Get the newest version at [mvnrepository.com/collo](https://mvnrepository.com/artifact/com.mantledillusion.data/collo)
+
 ## 1. Shaping String Input
 
-Many forms of string data has a certain format; for example, names have the first name before the last name and addresses usually start with the street, followed by the name of the city.
+Many forms of string data has a certain format; for example, names have the first name before the last name and addresses usually start with the street and house number, followed by the name of the city.
 
 Such simple formats can easily be recognized using regular expressions. But if there is a certain variation possible in the format, the regular expression complexity will completely explode:
 - If there are a lot of optional parts ("Harry Potter" is valid, as is "Harry James Potter")
