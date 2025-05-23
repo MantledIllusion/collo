@@ -25,14 +25,16 @@ In addition, if the input cannot be pre-categorized at all (not knowing a string
 
 Collo was made to counter all these problems at once.
 
-### 1.1 The InputPart
+### 1.1 The Keyword
 
-The input part is a technical regular expression based representation of string segments.
+The keyword is a technical regular expression based representation of string segments.
 
-Collo requires an **_Enum_** implementing the interface **_InputPart_** to represent the parts, so analysis results can be returned as PartEnum->Substring pairs.
+Collo requires an implementation of the interface **_Keyword_** to represent the keywords, so analysis results can be returned as Keyword->substring pairs.
+
+This is an example of a simple **_Keyword_** using an **_Enum_**:
 
 ```java
-private enum InputParts implements InputPart {
+private enum Keywords implements Keyword {
     FIRSTNAME("[A-Z]{1}[A-Za-z]*"),
     LASTNAME("[A-Z]{1}[A-Za-z]*"),
     UNDESIRABLE_NUMBER("Undesirable No \\d+"),
@@ -43,45 +45,55 @@ private enum InputParts implements InputPart {
 }
 ```
 
-### 1.2 The InputGroup
+### 1.2 The Term
 
-The input group is a functional sequence of input parts that describe the same entity.
+The term is a functional sequence of keywords that describe the same entity.
 
-Collo requires an **_Enum_** to represent the groups, so analysis results can be returned as GroupEnum->Map<PartEnum, Substring> pairs.
+Collo requires an implementation of the interface **_Term_** to represent the terms, so analysis results can be returned as Term->Map<PartEnum, Substring> pairs.
+
+This is an example of a simple **_Term_** using an **_Enum_**:
 
 ```java
-    private enum InputGroups {
+    private enum Terms implements Term {
         FULLNAME, 
         FULLADDRESS;
     }
 ```
 
-## 2. The InputAnalyzer
+## 2. Term- and KeywordAnalyzers
 
-The **_InputAnalyzer_** class offers a static builder which allows adding an arbitrary number of **_InputGroup_** instances the analyzer will be able to recognize.
+The **_TermAnalyzer_** class offers a static builder which allows adding an arbitrary number of **_Term_** instances the analyzer will be able to recognize.
 
-The **_InputGroup_** class offers a static builder which allows adding an arbitrary number of **_InputPart_** instances that make up the group.
+The **_KeywordAnalyzer_** class offers a static builder which allows adding an arbitrary number of **_Keyword_** instances that make up the term.
 
-In combination, both builders can be used to set up an analyzer that can recognize completely different shapes of strings:
+In combination, both builders can be used to set up an analyzer that can recognize completely different shapes of strings.
+
+This is an example of building an analyzer using the example terms and keywords above:
 
 ```java
-InputAnalyzer<InputGroups, InputParts> analyzer = InputAnalyzer
-    .forGroup(InputGroups.FULLNAME, InputGroup.
-        andPart(InputParts.UNDESIRABLE_NUMBER, PartOccurrenceMode.EXCLUSIVE).
-        forPart(InputParts.FORENAME).
-        andPart(InputParts.LASTNAME).build())
-    .andGroup(InputGroups.FULLADDRESS, InputGroup.
-        forPart(InputParts.HOUSENR, PartOccurrenceMode.OPTIONAL).
-        andPart(InputParts.STREET).
-        andPart(InputParts.CITY).build())
-    .build();
+import com.mantledillusion.data.collo.TermAnalyzer;
+import com.mantledillusion.data.collo.KeywordAnalyzer;
+import com.mantledillusion.data.collo.KeywordOccurrence;
+
+TermAnalyzer<Terms, InputParts> termAnalyzer = TermAnalyzer
+        .forTerm(Terms.FULLNAME, KeywordAnalyzer
+                .forKeyword(Keywords.UNDESIRABLE_NUMBER, KeywordOccurrence.EXCLUSIVE)
+                .andKeyword(Keywords.FORENAME)
+                .andKeyword(Keywords.LASTNAME)
+                .build())
+        .andTerm(Terms.FULLADDRESS, KeywordAnalyzer
+                .forKeyword(Keywords.HOUSENR, KeywordOccurrence.OPTIONAL)
+                .andKeyword(Keywords.STREET)
+                .andKeyword(Keywords.CITY)
+                .build())
+        .build();
 ```
 
-Setting a **_PartOccurrenceMode_** can help to cover cases when a part can occur but does not have to (OPTIONAL), or when such an optional part might be the only part when it occurs (EXCLUSIVE).
+Setting a **_KeywordOccurrence_** can help to cover cases when a part can occur but does not have to (OPTIONAL), or when such an optional part might be the only part when it occurs (EXCLUSIVE).
 
-The analyzer has several methods to analyze input strings, but all of them base on _**InputAnalyzer**.analyze(String term)_, which can split a term into the possible groups it matches:
+The analyzer has several methods to analyze input strings, but all of them base on _**TermAnalyzer**.analyze(String input)_, which can split an input into the possible terms and keywords it matches:
 
-```inputAnalyzer.analyze("Harry Potter")``` :
+Calling ```termAnalyzer.analyze("Harry Potter")``` on the example above would return a result map looking like this when converted to JSON:
 ```json
 [
   {
