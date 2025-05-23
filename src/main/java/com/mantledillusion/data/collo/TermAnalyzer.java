@@ -93,7 +93,7 @@ public final class TermAnalyzer<T extends Term, K extends Keyword> {
 		}
 		if (!this.terms.containsKey(term)) {
 			throw new IllegalArgumentException(
-					"The term definition '" + term.name() + "' is unknown to this analyzer.");
+					"The term '" + term + "' is unknown to this analyzer.");
 		}
 		return this.terms.get(term).matches(input);
 	}
@@ -181,7 +181,7 @@ public final class TermAnalyzer<T extends Term, K extends Keyword> {
 	public List<LinkedHashMap<K, String>> analyze(String input, T term) {
 		if (!this.terms.containsKey(term)) {
 			throw new IllegalArgumentException(
-					"The term identifier '" + term.name() + "' is unknown to this analyzer.");
+					"The term '" + term + "' is unknown to this analyzer.");
 		}
 		return this.terms.get(term).analyze(input);
 	}

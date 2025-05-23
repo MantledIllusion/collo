@@ -38,13 +38,6 @@ import com.mantledillusion.data.collo.KeywordAnalyzer.KeywordAnalyzerBuilder;
 public interface Keyword {
 
 	/**
-	 * The name of the keyword.
-	 *
-	 * @return The name, never null
-	 */
-	String name();
-
-	/**
 	 * Returns the regular expression that is able to evaluate as {@link String#matches(String)}=true when used on
 	 * a {@link String} input that represents a valid value for the {@link Keyword}.
 	 * 

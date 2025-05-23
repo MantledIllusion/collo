@@ -11,17 +11,11 @@ package com.mantledillusion.data.collo;
  * <code>
  * public static enum Terms implements Term {<br>
  * <br>
- * &nbsp;&nbsp;ADDRESS("[A-Z]{1}[A-Za-z]+");<br>
+ * &nbsp;&nbsp;ADDRESS;<br>
  * <br>
  * }
  * </code>
  */
 public interface Term {
 
-    /**
-     * The name of the term.
-     *
-     * @return The name, never null
-     */
-    String name();
 }
