@@ -66,6 +66,15 @@ public final class TermAnalyzer<T extends Term, K extends Keyword> {
 	}
 
 	/**
+	 * Returns an unmodifiable view of the analyzer's terms.
+	 *
+	 * @return The terms, never null, might be empty
+	 */
+	public Set<T> getTerms() {
+		return this.terms.keySet();
+	}
+
+	/**
 	 * Matches the given input against all {@link KeywordAnalyzer}s of this {@link TermAnalyzer}.
 	 * 
 	 * @param input The input to match against; might be null.

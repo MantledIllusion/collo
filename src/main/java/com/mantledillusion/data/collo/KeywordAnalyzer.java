@@ -1,8 +1,7 @@
 package com.mantledillusion.data.collo;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * An analyzer that might be used in cases where an input has to be checked against a set of {@link Keyword}s.
@@ -151,6 +150,17 @@ public final class KeywordAnalyzer<K extends Keyword> {
 		this.keywords = keywords;
 		this.matchesAny = matchesAny;
 		this.spliterator = spliterator;
+	}
+
+	/**
+	 * Returns an unmodifiable view of the analyzer's keywords.
+	 *
+	 * @return The keywords, never null, might be empty
+	 */
+	public List<K> getKeywords() {
+		return Collections.unmodifiableList(Arrays.stream(this.keywords)
+				.map(AnalyzerKeyword::getKeyword)
+				.collect(Collectors.toList()));
 	}
 
 	/**
