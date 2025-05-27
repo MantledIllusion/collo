@@ -44,4 +44,18 @@ public interface Keyword {
 	 * @return A regular expression; never null and parseable by {@link Pattern}
 	 */
 	String getMatcher();
+
+	/**
+	 * Returns the weight used by the {@link KeywordAnalyzer} to sort analyzed keyword sets in descending manner, sets
+	 * of higher summed weight will appear first in analysis results.
+	 * <p>
+	 * Applies the weight <code>1.0</code> by default.
+	 *
+	 * @param input The input that was analyzed; might <b>not</b> be null.
+	 * @param segment The segment of the input that matched the keyword; might <b>not</b> be null.
+	 * @return The weight
+	 */
+	default double weight(String input, String segment) {
+		return 1.0;
+	}
 }

@@ -17,6 +17,27 @@ public final class KeywordAnalyzer<K extends Keyword> {
 
 	private static final String DEFAULT_SPLITERATOR = " ";
 
+	private class WeightedKeywords {
+
+		private final LinkedHashMap<K, String> keywords;
+		private final double weight;
+
+		private WeightedKeywords(String input, LinkedHashMap<K, String> keywords) {
+			this.keywords = keywords;
+			this.weight = keywords.entrySet().parallelStream()
+					.mapToDouble(entry -> entry.getKey().weight(input, entry.getValue()))
+					.sum();
+		}
+
+		public LinkedHashMap<K, String> getKeywords() {
+			return this.keywords;
+		}
+
+		public double getWeight() {
+			return this.weight;
+		}
+	}
+
 	private static final class AnalyzerKeyword<K extends Keyword> {
 
 		private final K keyword;
@@ -174,8 +195,8 @@ public final class KeywordAnalyzer<K extends Keyword> {
 	}
 
 	/**
-	 * Returns a {@link List} of possibilities on how the given input can be split by this {@link KeywordAnalyzer}'s
-	 * separator to match this {@link KeywordAnalyzer}'s {@link Keyword}s.
+	 * Returns a {@link List} sorted by weight of possibilities on how the given input can be split by this
+	 * {@link KeywordAnalyzer}'s separator to match this {@link KeywordAnalyzer}'s {@link Keyword}s.
 	 * <p>
 	 * For example, for a street-city matching input with the non-optional keywords...<br>
 	 * - STREET("[A-Z]{1}[A-Za-z]*( [A-Z]{1}[A-Za-z]*)*") and<br>
@@ -206,7 +227,11 @@ public final class KeywordAnalyzer<K extends Keyword> {
 		List<LinkedHashMap<K, String>> terms = new ArrayList<>();
 		boolean[] useMatcher = new boolean[this.keywords.length];
 		addTerms(terms, termKeywords, useMatcher, 0);
-		return terms;
+		return terms.parallelStream()
+				.map(keywords -> new WeightedKeywords(input, keywords))
+				.sorted(Comparator.comparing(WeightedKeywords::getWeight).reversed())
+				.map(WeightedKeywords::getKeywords)
+				.collect(Collectors.toList());
 	}
 
 	private void addTerms(List<LinkedHashMap<K, String>> terms, String[] termKeywords,

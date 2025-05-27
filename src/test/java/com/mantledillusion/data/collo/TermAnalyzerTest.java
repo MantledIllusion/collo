@@ -37,7 +37,7 @@ public class TermAnalyzerTest {
 		return sb.toString();
 	}
 
-	private enum Terms implements Term {
+	private enum Terms implements Term<Keywords> {
 		FULLNAME, FULLADDRESS;
 	}
 

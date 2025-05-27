@@ -1,11 +1,8 @@
 package com.mantledillusion.data.collo;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * An analyzer that might be used in cases where an input has to be checked against a set of {@link KeywordAnalyzer}s.
@@ -15,7 +12,36 @@ import java.util.stream.Collectors;
  * @param <T> The {@link Term} type identifying the analyzers terms.
  * @param <K> The {@link Keyword} type identifying the analyzer term's keywords.
  */
-public final class TermAnalyzer<T extends Term, K extends Keyword> {
+public final class TermAnalyzer<T extends Term<K>, K extends Keyword> {
+
+	private class WeightedTerm {
+
+		private final T term;
+		private final List<LinkedHashMap<K, String>> keywords;
+		private final double weight;
+
+        private WeightedTerm(String input, T term, List<LinkedHashMap<K, String>> keywords) {
+            this.term = term;
+            this.keywords = keywords;
+			this.weight = this.term.weight(input, this.keywords);
+        }
+
+		private T getTerm() {
+			return this.term;
+		}
+
+		private List<LinkedHashMap<K, String>> getKeywords() {
+			return this.keywords;
+		}
+
+		private double getWeight() {
+			return this.weight;
+		}
+
+		private boolean matches() {
+			return !this.keywords.isEmpty();
+		}
+    }
 
 	/**
 	 * Builder for {@link TermAnalyzer}s.
@@ -23,7 +49,7 @@ public final class TermAnalyzer<T extends Term, K extends Keyword> {
 	 * @param <T> The {@link Term} type identifying the analyzers terms.
 	 * @param <K> The {@link Keyword} type identifying the analyzer term's keywords.
 	 */
-	public static final class TermAnalyzerBuilder<T extends Term, K extends Keyword> {
+	public static final class TermAnalyzerBuilder<T extends Term<K>, K extends Keyword> {
 
 		private final Map<T, KeywordAnalyzer<K>> terms = new HashMap<>();
 
@@ -121,8 +147,8 @@ public final class TermAnalyzer<T extends Term, K extends Keyword> {
 	}
 
 	/**
-	 * Returns a {@link Map} of terms and their possibilities on how the given input can be split by
-	 * the {@link KeywordAnalyzer}'s separators to match the {@link KeywordAnalyzer}'s {@link Keyword}s.
+	 * Returns a {@link LinkedHashMap} sorted by weight of terms and their possibilities on how the given input can be
+	 * split by the {@link KeywordAnalyzer}'s separators to match the {@link KeywordAnalyzer}'s {@link Keyword}s.
 	 * <p>
 	 * For example, on an {@link TermAnalyzer} containing the two {@link Term}s and their respective non-optional
 	 * {@link Keyword}s...<br>
@@ -166,11 +192,18 @@ public final class TermAnalyzer<T extends Term, K extends Keyword> {
 	 * empty if no {@link KeywordAnalyzer} matches the input at all (in this case, {@link #matches(String)} would
 	 * return <code>false</code> for the same input)
 	 */
-	public Map<T, List<LinkedHashMap<K, String>>> analyze(String input) {
-		Map<T, List<LinkedHashMap<K, String>>> resultMap = this.terms.entrySet().parallelStream()
-				.collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().analyze(input)));
-		return resultMap.entrySet().parallelStream().filter(entry -> !entry.getValue().isEmpty())
-				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+	public LinkedHashMap<T, List<LinkedHashMap<K, String>>> analyze(String input) {
+		return this.terms.entrySet().parallelStream()
+				.map(entry -> new WeightedTerm(input, entry.getKey(), entry.getValue().analyze(input)))
+				.filter(WeightedTerm::matches)
+				.sorted(Comparator.comparing(WeightedTerm::getWeight).reversed())
+				.collect(Collectors.toMap(
+						WeightedTerm::getTerm,
+                        WeightedTerm::getKeywords,
+						(k1, k2) -> Stream.concat(k1.stream(), k2.stream())
+								.collect(Collectors.toList()),
+						LinkedHashMap::new
+				));
 	}
 
 	/**
@@ -204,7 +237,7 @@ public final class TermAnalyzer<T extends Term, K extends Keyword> {
 	 * @param analyzer The term to add to the {@link TermAnalyzer}; might <b>not</b> be null.
 	 * @return A new {@link TermAnalyzerBuilder}; never null
 	 */
-	public static <T extends Term, K extends Keyword> TermAnalyzerBuilder<T, K> forTerm(T term, KeywordAnalyzer<K> analyzer) {
+	public static <T extends Term<K>, K extends Keyword> TermAnalyzerBuilder<T, K> forTerm(T term, KeywordAnalyzer<K> analyzer) {
 		TermAnalyzerBuilder<T, K> builder = new TermAnalyzerBuilder<>();
 		builder.andTerm(term, analyzer);
 		return builder;
