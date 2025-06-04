@@ -66,16 +66,15 @@ public class TermAnalyzerTest {
 
 	@Before
 	public void before() {
-		this.analyzer = TermAnalyzer
-				.forTerm(Terms.FULLNAME, KeywordAnalyzer.
-						forKeyword(Keywords.FORENAME).
-						andKeyword(Keywords.UNDESIRABLE_NUMBER, KeywordOccurrence.EXCLUSIVE).
-						andKeyword(Keywords.LASTNAME).build())
-				.andTerm(Terms.FULLADDRESS, KeywordAnalyzer.
-						forKeyword(Keywords.HOUSENR, KeywordOccurrence.OPTIONAL).
-						andKeyword(Keywords.STREET).
-						andKeyword(Keywords.CITY).build())
-				.build();
+		this.analyzer = new TermAnalyzer<Terms, Keywords>()
+				.addTerm(Terms.FULLNAME, new KeywordAnalyzer<Keywords>()
+						.addKeyword(Keywords.FORENAME)
+						.addKeyword(Keywords.UNDESIRABLE_NUMBER, KeywordOccurrence.EXCLUSIVE)
+						.addKeyword(Keywords.LASTNAME))
+				.addTerm(Terms.FULLADDRESS, new KeywordAnalyzer<Keywords>()
+						.addKeyword(Keywords.HOUSENR, KeywordOccurrence.OPTIONAL)
+						.addKeyword(Keywords.STREET)
+						.addKeyword(Keywords.CITY));
 	}
 
 	@Test

@@ -6,8 +6,6 @@ import java.util.stream.Stream;
 
 /**
  * An analyzer that might be used in cases where an input has to be checked against a set of {@link KeywordAnalyzer}s.
- * <p>
- * To form an {@link TermAnalyzer}, use {@link #forTerm(Term, KeywordAnalyzer)} to start an {@link TermAnalyzerBuilder}.
  *
  * @param <T> The {@link Term} type identifying the analyzers terms.
  * @param <K> The {@link Keyword} type identifying the analyzer term's keywords.
@@ -44,51 +42,49 @@ public final class TermAnalyzer<T extends Term<K>, K extends Keyword> {
     }
 
 	/**
-	 * Builder for {@link TermAnalyzer}s.
+	 * A listener to {@link TermAnalyzer}s.
 	 *
 	 * @param <T> The {@link Term} type identifying the analyzers terms.
 	 * @param <K> The {@link Keyword} type identifying the analyzer term's keywords.
 	 */
-	public static final class TermAnalyzerBuilder<T extends Term<K>, K extends Keyword> {
-
-		private final Map<T, KeywordAnalyzer<K>> terms = new HashMap<>();
-
-		private TermAnalyzerBuilder() {
-		}
+	public interface TermUpdateListener<T extends Term<K>, K extends Keyword> {
 
 		/**
-		 * Adds the given {@link KeywordAnalyzer} identified by the given identifier to the {@link TermAnalyzer} to build.
+		 * Invoked when a term is added/removed to/from a {@link TermAnalyzer}.
 		 *
-		 * @param term The definition the given term will be identified by the {@link TermAnalyzer}; might <b>not</b> be null.
-		 * @param analyzer The term to add to the {@link TermAnalyzer}; might <b>not</b> be null.
-		 * @return this
+		 * @param term The term that was updated; might <b>not</b> be null.
+		 * @param keywordAnalyzer The keyword analyzer that was updated; might <b>not</b> be null.
+		 * @param added True if the term was added, false if it was removed
 		 */
-		public TermAnalyzerBuilder<T, K> andTerm(T term, KeywordAnalyzer<K> analyzer) {
-			if (term == null) {
-				throw new IllegalArgumentException("Cannot add an analyzer for a null term.");
-			} else if (analyzer == null) {
-				throw new IllegalArgumentException("Cannot add a null analyzer.");
-			} else if (this.terms.containsKey(term)) {
-				throw new IllegalArgumentException("Cannot add an analyzer for the term '" + term + "' twice.");
-			}
-			this.terms.put(term, analyzer);
-			return this;
-		}
-
-		/**
-		 * Builds a new {@link TermAnalyzer} out of the {@link KeywordAnalyzer}s currently contained by this {@link TermAnalyzerBuilder}.
-		 * 
-		 * @return A new {@link TermAnalyzer}; never null
-		 */
-		public TermAnalyzer<T, K> build() {
-			return new TermAnalyzer<>(new HashMap<>(this.terms));
-		}
+		void termUpdated(T term, KeywordAnalyzer<K> keywordAnalyzer, boolean added);
 	}
 
 	private final Map<T, KeywordAnalyzer<K>> terms;
+	private final List<TermUpdateListener<T, K>> listeners = new ArrayList<>();
 
-	private TermAnalyzer(Map<T, KeywordAnalyzer<K>> terms) {
-		this.terms = terms;
+	/**
+	 * Instantiates a {@link TermAnalyzer}.
+	 */
+	public TermAnalyzer() {
+		this.terms = new HashMap<>();
+	}
+
+	/**
+	 * Adds the given {@link TermUpdateListener} to the analyzer.
+	 *
+	 * @param listener The listener to add; might <b>not</b> be null.
+	 */
+	public void addListener(TermUpdateListener<T, K> listener) {
+		this.listeners.add(listener);
+	}
+
+	/**
+	 * Removed the given {@link TermUpdateListener} from the analyzer.
+	 *
+	 * @param listener The listener to remove; might <b>not</b> be null.
+	 */
+	public void removeListener(TermUpdateListener<T, K> listener) {
+		this.listeners.remove(listener);
 	}
 
 	/**
@@ -98,6 +94,40 @@ public final class TermAnalyzer<T extends Term<K>, K extends Keyword> {
 	 */
 	public Set<T> getTerms() {
 		return this.terms.keySet();
+	}
+
+	/**
+	 * Adds the given {@link KeywordAnalyzer} identified by the given identifier to this {@link TermAnalyzer}.
+	 *
+	 * @param term The definition the given term will be identified by the {@link TermAnalyzer}; might <b>not</b> be null.
+	 * @param analyzer The term to add to the {@link TermAnalyzer}; might <b>not</b> be null.
+	 * @return this
+	 */
+	public TermAnalyzer<T, K> addTerm(T term, KeywordAnalyzer<K> analyzer) {
+		if (term == null) {
+			throw new IllegalArgumentException("Cannot add an analyzer for a null term.");
+		} else if (analyzer == null) {
+			throw new IllegalArgumentException("Cannot add a null analyzer.");
+		} else if (this.terms.containsKey(term)) {
+			throw new IllegalArgumentException("Cannot add an analyzer for the term '" + term + "' twice.");
+		}
+		this.terms.put(term, analyzer);
+		this.listeners.forEach(listener -> listener.termUpdated(term, analyzer, true));
+		return this;
+	}
+
+	/**
+	 * Removes the {@link KeywordAnalyzer} identified by the given identifier from this {@link TermAnalyzer}.
+	 *
+	 * @param term The definition the given term is identified by the {@link TermAnalyzer}; might <b>not</b> be null.
+	 * @return this
+	 */
+	public TermAnalyzer<T, K> removeTerm(T term) {
+		if (this.terms.containsKey(term)) {
+			KeywordAnalyzer<K> analyzer = this.terms.remove(term);
+			this.listeners.forEach(listener -> listener.termUpdated(term, analyzer, false));
+		}
+		return this;
 	}
 
 	/**
@@ -226,20 +256,5 @@ public final class TermAnalyzer<T extends Term<K>, K extends Keyword> {
 					"The term '" + term + "' is unknown to this analyzer.");
 		}
 		return this.terms.get(term).analyze(input);
-	}
-
-	/**
-	 * Begins a new {@link TermAnalyzerBuilder}.
-	 *
-	 * @param <T> The {@link Term} type identifying the analyzers terms.
-	 * @param <K> The {@link Keyword} type identifying the analyzer term's keywords.
-	 * @param term The definition the given term will be identified by the {@link TermAnalyzer}; might <b>not</b> be null.
-	 * @param analyzer The term to add to the {@link TermAnalyzer}; might <b>not</b> be null.
-	 * @return A new {@link TermAnalyzerBuilder}; never null
-	 */
-	public static <T extends Term<K>, K extends Keyword> TermAnalyzerBuilder<T, K> forTerm(T term, KeywordAnalyzer<K> analyzer) {
-		TermAnalyzerBuilder<T, K> builder = new TermAnalyzerBuilder<>();
-		builder.andTerm(term, analyzer);
-		return builder;
 	}
 }

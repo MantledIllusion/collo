@@ -7,15 +7,15 @@ import java.util.stream.Collectors;
  * An analyzer that might be used in cases where an input has to be checked against a set of {@link Keyword}s.
  * <p>
  * The analyzer's keywords have to be separated by a specifiable separator, so they can be matched individually.
- * <p>
- * To form a {@link KeywordAnalyzer}, use {@link #forKeyword(Keyword)}
- * or {@link #forKeyword(Keyword, KeywordOccurrence)} to start a {@link KeywordAnalyzerBuilder}.
  * 
  * @param <K> The {@link Keyword} type that defines the term's keywords.
  */
 public final class KeywordAnalyzer<K extends Keyword> {
 
-	private static final String DEFAULT_SPLITERATOR = " ";
+	/**
+	 * The separator " " used by default {@link KeywordAnalyzer}s.
+	 */
+	public static final String DEFAULT_SPLITERATOR = " ";
 
 	private class WeightedKeywords {
 
@@ -58,119 +58,146 @@ public final class KeywordAnalyzer<K extends Keyword> {
 	}
 
 	/**
-	 * A builder for {@link KeywordAnalyzer}s.
-	 * <p>
-	 * All keywords given to the builder will be contained and checked by the build analyzer in the exact order they
-	 * were given to the builder.
-	 * 
-	 * @param <K> The {@link Keyword} type that defines the {@link KeywordAnalyzer}'s keywords.
+	 * A listener to {@link KeywordAnalyzer}s.
+	 *
+	 * @param <K> The {@link Keyword} type that defines the term's keywords.
 	 */
-	public static final class KeywordAnalyzerBuilder<K extends Keyword> {
-
-		private final List<AnalyzerKeyword<K>> keywords = new ArrayList<>();
-
-		private KeywordAnalyzerBuilder() {
-		}
+	public interface KeywordUpdateListener<K extends Keyword> {
 
 		/**
-		 * Adds the given {@link Keyword} to the {@link KeywordAnalyzer} to build.
-		 * <p>
-		 * Defines the keyword's occurrence in its analyzer as {@link KeywordOccurrence#FIX}.
-		 * 
-		 * @param keyword The keyword to add; might <b>not</b> be null.
-		 * @return this
-		 */
-		public KeywordAnalyzerBuilder<K> andKeyword(K keyword) {
-			return andKeyword(keyword, KeywordOccurrence.FIX);
-		}
-
-		/**
-		 * Adds the given {@link Keyword} to the {@link KeywordAnalyzer} to build.
+		 * Invoked when a keyword is added/removed to/from a {@link KeywordAnalyzer}.
 		 *
-		 * @param keyword The keyword to add; might <b>not</b> be null.
-		 * @param occurrence Describes how the keyword can occur in its analyzer; might <b>not</b> be null.
-		 * @return this
+		 * @param keyword The keyword that was updated; might <b>not</b> be null.
+		 * @param occurrence The occurrence of the keyword that was updated; might <b>not</b> be null.
+		 * @param added True if the keyword was added, false if it was removed
 		 */
-		public KeywordAnalyzerBuilder<K> andKeyword(K keyword, KeywordOccurrence occurrence) {
-			if (keyword == null) {
-				throw new IllegalArgumentException("Cannot add null keyword.");
-			} else if (occurrence == null) {
-				throw new IllegalArgumentException("Cannot keyword using a null occurrence.");
-			}
-			this.keywords.add(new AnalyzerKeyword<>(keyword, occurrence));
-			return this;
-		}
-
-		/**
-		 * Builds an {@link KeywordAnalyzer} out of the {@link Keyword}s currently contained by this {@link KeywordAnalyzerBuilder}.
-		 * <p>
-		 * Defines <code>matchesAny</code> as <code>true</code>; even if all the analyzer's keywords are optional, at
-		 * least one has to match in order for the whole analyzer to match.
-		 * <p>
-		 * Defines <code>spliterator</code> as <code>" "</code>; the analyzer's keywords are expected to be separated
-		 * by a space.
-		 * 
-		 * @return A new {@link KeywordAnalyzer}; never null
-		 */
-		public KeywordAnalyzer<K> build() {
-			return build(true, DEFAULT_SPLITERATOR);
-		}
-
-		/**
-		 * Builds an {@link KeywordAnalyzer} out of the {@link Keyword}s currently contained by this {@link KeywordAnalyzerBuilder}.
-		 * <p>
-		 * Defines <code>spliterator</code> as <code>" "</code>; the analyzer's keywords are expected to be separated
-		 * by a space.
-		 * 
-		 * @param matchesAny Whether any of the analyzer's keywords has to match for the whole analyzer to match. Only
-		 *                   has effect in analyzers whose keywords are all optional; in that case, using
-		 *                   <code>false</code> will allow an empty input to match the analyzer.
-		 * @return A new {@link KeywordAnalyzer}; never null
-		 */
-		public KeywordAnalyzer<K> build(boolean matchesAny) {
-			return build(matchesAny, DEFAULT_SPLITERATOR);
-		}
-
-		/**
-		 * Builds an {@link KeywordAnalyzer} out of the {@link Keyword}s currently contained by this {@link KeywordAnalyzerBuilder}.
-		 * <p>
-		 * Defines <code>matchesAny</code> as <code>true</code>; even if all the analyzer's keywords are optional, at
-		 * least one has to match in order for the whole analyzer to match.
-		 * 
-		 * @param spliterator The separator to split an input by to gain separated keywords; might <b>not</b> be null.
-		 * @return A new {@link KeywordAnalyzer}; never null
-		 */
-		public KeywordAnalyzer<K> build(String spliterator) {
-			return build(true, spliterator);
-		}
-
-		/**
-		 * Builds an {@link KeywordAnalyzer} out of the {@link Keyword}s currently contained by this
-		 * {@link KeywordAnalyzerBuilder}.
-		 *
-		 * @param matchesAny Whether any of the analyzer's keywords has to match for the whole analyzer to match. Only
-		 *                   has effect in analyzers whose keywords are all optional; in that case, using
-		 *                   <code>false</code> will allow an empty input to match the analyzer.
-		 * @param spliterator The separator to split an input by to gain separated keywords; might <b>not</b> be null.
-		 * @return A new {@link KeywordAnalyzer}; never null
-		 */
-		@SuppressWarnings("unchecked")
-		public KeywordAnalyzer<K> build(boolean matchesAny, String spliterator) {
-			if (spliterator == null || spliterator.isEmpty()) {
-				throw new IllegalArgumentException("The spliterator may never be null or empty.");
-			}
-			return new KeywordAnalyzer<>(this.keywords.toArray(new AnalyzerKeyword[0]), matchesAny, spliterator);
-		}
+		void keywordUpdated(K keyword, KeywordOccurrence occurrence, boolean added);
 	}
 
-	private final AnalyzerKeyword<K>[] keywords;
+	private final List<AnalyzerKeyword<K>> keywords;
 	private final boolean matchesAny;
 	private final String spliterator;
+	private final List<KeywordUpdateListener<K>> listeners = new ArrayList<>();
 
-	private KeywordAnalyzer(AnalyzerKeyword<K>[] keywords, boolean matchesAny, String spliterator) {
-		this.keywords = keywords;
+	/**
+	 * Instantiates a {@link KeywordAnalyzer}.
+	 * <p>
+	 * Defines <code>matchesAny</code> as <code>true</code>; even if all the analyzer's keywords are optional, at
+	 * least one has to match in order for the whole analyzer to match.
+	 * <p>
+	 * Defines <code>spliterator</code> as <code>" "</code>; the analyzer's keywords are expected to be separated
+	 * by a space.
+	 */
+	public KeywordAnalyzer() {
+		this(true, DEFAULT_SPLITERATOR);
+	}
+
+	/**
+	 * Instantiates a {@link KeywordAnalyzer}.
+	 * <p>
+	 * Defines <code>spliterator</code> as <code>" "</code>; the analyzer's keywords are expected to be separated
+	 * by a space.
+	 *
+	 * @param matchesAny Whether any of the analyzer's keywords has to match for the whole analyzer to match. Only
+	 *                   has effect in analyzers whose keywords are all optional; in that case, using
+	 *                   <code>false</code> will allow an empty input to match the analyzer.
+	 */
+	public KeywordAnalyzer(boolean matchesAny) {
+		this(matchesAny, DEFAULT_SPLITERATOR);
+	}
+
+	/**
+	 * Instantiates a {@link KeywordAnalyzer}.
+	 * <p>
+	 * Defines <code>matchesAny</code> as <code>true</code>; even if all the analyzer's keywords are optional, at
+	 * least one has to match in order for the whole analyzer to match.
+	 *
+	 * @param spliterator The separator to split an input by to gain separated keywords; might <b>not</b> be null.
+	 */
+	public KeywordAnalyzer(String spliterator) {
+		this(true, spliterator);
+	}
+
+	/**
+	 * Instantiates a {@link KeywordAnalyzer}.
+	 *
+	 * @param matchesAny Whether any of the analyzer's keywords has to match for the whole analyzer to match. Only
+	 *                   has effect in analyzers whose keywords are all optional; in that case, using
+	 *                   <code>false</code> will allow an empty input to match the analyzer.
+	 * @param spliterator The separator to split an input by to gain separated keywords; might <b>not</b> be null.
+	 */
+	public KeywordAnalyzer(boolean matchesAny, String spliterator) {
+		this.keywords = new ArrayList<>();
 		this.matchesAny = matchesAny;
 		this.spliterator = spliterator;
+	}
+
+	/**
+	 * Adds the given {@link KeywordUpdateListener} to the analyzer.
+	 *
+	 * @param listener The listener to add; might <b>not</b> be null.
+	 */
+	public void addListener(KeywordUpdateListener<K> listener) {
+		this.listeners.add(listener);
+	}
+
+	/**
+	 * Removed the given {@link KeywordUpdateListener} from the analyzer.
+	 *
+	 * @param listener The listener to remove; might <b>not</b> be null.
+	 */
+	public void removeListener(KeywordUpdateListener<K> listener) {
+		this.listeners.remove(listener);
+	}
+
+	/**
+	 * Adds the given {@link Keyword} to this {@link KeywordAnalyzer}.
+	 * <p>
+	 * Defines the keyword's occurrence in its analyzer as {@link KeywordOccurrence#FIX}.
+	 *
+	 * @param keyword The keyword to add; might <b>not</b> be null.
+	 * @return this
+	 */
+	public KeywordAnalyzer<K> addKeyword(K keyword) {
+		return addKeyword(keyword, KeywordOccurrence.FIX);
+	}
+
+	/**
+	 * Adds the given {@link Keyword} to this {@link KeywordAnalyzer}.
+	 *
+	 * @param keyword The keyword to add; might <b>not</b> be null.
+	 * @param occurrence Describes how the keyword can occur in its analyzer; might <b>not</b> be null.
+	 * @return this
+	 */
+	public KeywordAnalyzer<K> addKeyword(K keyword, KeywordOccurrence occurrence) {
+		if (keyword == null) {
+			throw new IllegalArgumentException("Cannot add null keyword.");
+		} else if (occurrence == null) {
+			throw new IllegalArgumentException("Cannot keyword using a null occurrence.");
+		} else if (this.keywords.stream().anyMatch(next -> next.keyword.equals(keyword))) {
+			throw new IllegalArgumentException("Cannot add keyword '" + keyword + "' twice.");
+		}
+		this.keywords.add(new AnalyzerKeyword<>(keyword, occurrence));
+		this.listeners.forEach(listener -> listener.keywordUpdated(keyword, occurrence, true));
+		return this;
+	}
+
+	/**
+	 * Removes the given {@link Keyword} from this {@link KeywordAnalyzer}.
+	 *
+	 * @param keyword The keyword to remove; might <b>not</b> be null.
+	 * @return this
+	 */
+	public KeywordAnalyzer<K> removeKeyword(K keyword) {
+		Iterator<AnalyzerKeyword<K>> iter = this.keywords.iterator();
+		while (iter.hasNext()) {
+			AnalyzerKeyword<K> next = iter.next();
+			if (next.keyword.equals(keyword)) {
+				iter.remove();
+				this.listeners.forEach(listener -> listener.keywordUpdated(keyword, next.occurrence, false));
+			}
+		}
+		return this;
 	}
 
 	/**
@@ -179,7 +206,7 @@ public final class KeywordAnalyzer<K extends Keyword> {
 	 * @return The keywords, never null, might be empty
 	 */
 	public List<K> getKeywords() {
-		return Collections.unmodifiableList(Arrays.stream(this.keywords)
+		return Collections.unmodifiableList(this.keywords.stream()
 				.map(AnalyzerKeyword::getKeyword)
 				.collect(Collectors.toList()));
 	}
@@ -225,7 +252,7 @@ public final class KeywordAnalyzer<K extends Keyword> {
 	public List<LinkedHashMap<K, String>> analyze(String input) {
 		String[] termKeywords = (input == null ? "" : input).split(spliterator);
 		List<LinkedHashMap<K, String>> terms = new ArrayList<>();
-		boolean[] useMatcher = new boolean[this.keywords.length];
+		boolean[] useMatcher = new boolean[this.keywords.size()];
 		addTerms(terms, termKeywords, useMatcher, 0);
 		return terms.parallelStream()
 				.map(keywords -> new WeightedKeywords(input, keywords))
@@ -236,7 +263,7 @@ public final class KeywordAnalyzer<K extends Keyword> {
 
 	private void addTerms(List<LinkedHashMap<K, String>> terms, String[] termKeywords,
 						  boolean[] useMatcher, int currentMatcherIndex) {
-		if (this.keywords[currentMatcherIndex].getOccurrence() == KeywordOccurrence.EXCLUSIVE) {
+		if (this.keywords.get(currentMatcherIndex).getOccurrence() == KeywordOccurrence.EXCLUSIVE) {
 			// ADD TERMS WITHOUT THE EXCLUSIVE KEYWORD
 			addTerms(terms, termKeywords, useMatcher, currentMatcherIndex, false);
 
@@ -246,7 +273,7 @@ public final class KeywordAnalyzer<K extends Keyword> {
 			buildTerm(terms, new LinkedHashMap<>(), termKeywords, useMatcher, 0, 0);
 		} else {
 			// ADD TERMS WITHOUT THE OPTIONAL KEYWORD
-			if (this.keywords[currentMatcherIndex].getOccurrence() == KeywordOccurrence.OPTIONAL) {
+			if (this.keywords.get(currentMatcherIndex).getOccurrence() == KeywordOccurrence.OPTIONAL) {
 				addTerms(terms, termKeywords, useMatcher, currentMatcherIndex, false);
 			}
 
@@ -258,7 +285,7 @@ public final class KeywordAnalyzer<K extends Keyword> {
 	private void addTerms(List<LinkedHashMap<K, String>> terms, String[] termKeywords,
 						  boolean[] useMatcher, int currentMatcherIndex, boolean useCurrentMatcher) {
 		useMatcher[currentMatcherIndex] = useCurrentMatcher;
-		if (currentMatcherIndex + 1 < this.keywords.length) {
+		if (currentMatcherIndex + 1 < this.keywords.size()) {
 			addTerms(terms, termKeywords, useMatcher, currentMatcherIndex + 1);
 		} else if (!this.matchesAny || matchesAny(useMatcher)) {
 			buildTerm(terms, new LinkedHashMap<>(), termKeywords, useMatcher, 0, 0);
@@ -289,18 +316,18 @@ public final class KeywordAnalyzer<K extends Keyword> {
 			for (int incrementalTermIndex = currentTermIndex; incrementalTermIndex < termKeywords.length
 					- aheadMatcherCount; incrementalTermIndex++) {
 				currentTermKeyword = join(termKeywords, currentTermIndex, incrementalTermIndex + 1);
-				if (currentTermKeyword.matches(this.keywords[currentMatcherIndex].getKeyword().getMatcher())) {
+				if (currentTermKeyword.matches(this.keywords.get(currentMatcherIndex).getKeyword().getMatcher())) {
 					LinkedHashMap<K, String> newTerm = new LinkedHashMap<>(currentTerm);
-					newTerm.put(this.keywords[currentMatcherIndex].getKeyword(), currentTermKeyword);
+					newTerm.put(this.keywords.get(currentMatcherIndex).getKeyword(), currentTermKeyword);
 					if (incrementalTermIndex + 1 == termKeywords.length) {
 						terms.add(newTerm);
-					} else if (currentMatcherIndex + 1 < this.keywords.length) {
+					} else if (currentMatcherIndex + 1 < this.keywords.size()) {
 						buildTerm(terms, newTerm, termKeywords, useMatcher, incrementalTermIndex + 1,
 								currentMatcherIndex + 1);
 					}
 				}
 			}
-		} else if (currentMatcherIndex + 1 < this.keywords.length) {
+		} else if (currentMatcherIndex + 1 < this.keywords.size()) {
 			buildTerm(terms, currentTerm, termKeywords, useMatcher, currentTermIndex,
 					currentMatcherIndex + 1);
 		}
@@ -313,32 +340,5 @@ public final class KeywordAnalyzer<K extends Keyword> {
 		}
 		sb.deleteCharAt(sb.length() - 1);
 		return sb.toString();
-	}
-
-	/**
-	 * Begins a new {@link KeywordAnalyzerBuilder}.
-	 * <p>
-	 * Defines the keyword's occurrence in its term as {@link KeywordOccurrence#FIX}.
-	 * 
-	 * @param <K> The {@link Keyword} type that defines the analyzer's keywords.
-	 * @param keyword The keyword to add; might <b>not</b> be null.
-	 * @return A new {@link KeywordAnalyzerBuilder}; never null
-	 */
-	public static <K extends Keyword> KeywordAnalyzerBuilder<K> forKeyword(K keyword) {
-		return forKeyword(keyword, KeywordOccurrence.FIX);
-	}
-
-	/**
-	 * Begins a new {@link KeywordAnalyzerBuilder}.
-	 * 
-	 * @param <K> The {@link Keyword} type that defines the analyzer's keywords.
-	 * @param keyword The keyword to add; might <b>not</b> be null.
-	 * @param occurrence Describes how the keyword can occur in its analyzer; might <b>not</b> be null.
-	 * @return A new {@link KeywordAnalyzerBuilder}; never null
-	 */
-	public static <K extends Keyword> KeywordAnalyzerBuilder<K> forKeyword(K keyword, KeywordOccurrence occurrence) {
-		KeywordAnalyzerBuilder<K> builder = new KeywordAnalyzerBuilder<>();
-		builder.andKeyword(keyword, occurrence);
-		return builder;
 	}
 }

@@ -2,8 +2,6 @@ package com.mantledillusion.data.collo;
 
 import java.util.regex.Pattern;
 
-import com.mantledillusion.data.collo.KeywordAnalyzer.KeywordAnalyzerBuilder;
-
 /**
  * Interface for keywords of input terms.
  * <p>
@@ -31,9 +29,6 @@ import com.mantledillusion.data.collo.KeywordAnalyzer.KeywordAnalyzerBuilder;
  * &nbsp;&nbsp;}<br>
  * }
  * </code>
- * <p>
- * 1-&gt;n keywords can define a {@link KeywordAnalyzer} using an {@link KeywordAnalyzerBuilder} started
- * with {@link KeywordAnalyzer#forKeyword(Keyword)} or {@link KeywordAnalyzer#forKeyword(Keyword, KeywordOccurrence)}.
  */
 public interface Keyword {
 
