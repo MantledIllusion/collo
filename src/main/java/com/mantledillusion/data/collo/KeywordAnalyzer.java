@@ -312,13 +312,14 @@ public final class KeywordAnalyzer<K extends Keyword> {
 				}
 			}
 
-			String currentTermKeyword;
+			String segment;
 			for (int incrementalTermIndex = currentTermIndex; incrementalTermIndex < termKeywords.length
 					- aheadMatcherCount; incrementalTermIndex++) {
-				currentTermKeyword = join(termKeywords, currentTermIndex, incrementalTermIndex + 1);
-				if (currentTermKeyword.matches(this.keywords.get(currentMatcherIndex).getKeyword().getMatcher())) {
+				segment = join(termKeywords, currentTermIndex, incrementalTermIndex + 1);
+				K keyword = this.keywords.get(currentMatcherIndex).getKeyword();
+				if (segment.matches(keyword.getMatcher()) && keyword.verify(segment)) {
 					LinkedHashMap<K, String> newTerm = new LinkedHashMap<>(currentTerm);
-					newTerm.put(this.keywords.get(currentMatcherIndex).getKeyword(), currentTermKeyword);
+					newTerm.put(keyword, segment);
 					if (incrementalTermIndex + 1 == termKeywords.length) {
 						terms.add(newTerm);
 					} else if (currentMatcherIndex + 1 < this.keywords.size()) {

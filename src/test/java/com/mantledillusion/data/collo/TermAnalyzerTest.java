@@ -1,10 +1,13 @@
 package com.mantledillusion.data.collo;
 
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -27,6 +30,7 @@ public class TermAnalyzerTest {
 	private static final String TEST_CITY_2 = "Whinging";
 	private static final String TEST_ADDRESS = join(TEST_HOUSENR, TEST_STREET_1, TEST_STREET_2, TEST_CITY_1,
 			TEST_CITY_2);
+	private static final String TEST_BIRTHDAY = "1980-07-30";
 
 	private static String join(String... strings) {
 		StringBuilder sb = new StringBuilder();
@@ -38,7 +42,7 @@ public class TermAnalyzerTest {
 	}
 
 	private enum Terms implements Term<Keywords> {
-		FULLNAME, FULLADDRESS;
+		FULLNAME, FULLADDRESS, BIRTHDAY;
 	}
 
 	private enum Keywords implements Keyword {
@@ -48,17 +52,37 @@ public class TermAnalyzerTest {
 
 		HOUSENR("\\d+"),
 		STREET("[A-Z]{1}[A-Za-z]*( [A-Z]{1}[A-Za-z]*)*"),
-		CITY("[A-Z]{1}[A-Za-z]*( [A-Z]{1}[A-Za-z]*)*");
+		CITY("[A-Z]{1}[A-Za-z]*( [A-Z]{1}[A-Za-z]*)*"),
+
+		ISOLOCALDATE("[0-9]{4}-[0-9]{2}-[0-9]{2}", segment -> {
+			try {
+				DateTimeFormatter.ISO_LOCAL_DATE.parse(segment);
+				return true;
+			} catch (DateTimeParseException e) {
+				return false;
+			}
+		});
 
 		private final String matcher;
+		private final Predicate<String> verifier;
 
 		Keywords(String matcher) {
-			this.matcher = matcher;
+			this(matcher, segment -> true);
 		}
+
+		Keywords(String matcher, Predicate<String> verifier) {
+			this.matcher = matcher;
+            this.verifier = verifier;
+        }
 
 		@Override
 		public String getMatcher() {
 			return this.matcher;
+		}
+
+		@Override
+		public boolean verify(String segment) {
+			return this.verifier.test(segment);
 		}
 	}
 
@@ -74,7 +98,9 @@ public class TermAnalyzerTest {
 				.addTerm(Terms.FULLADDRESS, new KeywordAnalyzer<Keywords>()
 						.addKeyword(Keywords.HOUSENR, KeywordOccurrence.OPTIONAL)
 						.addKeyword(Keywords.STREET)
-						.addKeyword(Keywords.CITY));
+						.addKeyword(Keywords.CITY))
+				.addTerm(Terms.BIRTHDAY, new KeywordAnalyzer<Keywords>()
+						.addKeyword(Keywords.ISOLOCALDATE));
 	}
 
 	@Test
@@ -188,5 +214,18 @@ public class TermAnalyzerTest {
 		addressSplitPossibilities.put(Terms.FULLADDRESS, getAddressSplitByAddressGroupPossibilities());
 		
 		assertEquals(addressSplitPossibilities, this.analyzer.analyze(TEST_ADDRESS));
+	}
+
+	@Test
+	public void testVerifiedAnalyzing() {
+		Map<Keywords, String> birthdayPossibility = new HashMap<>();
+		birthdayPossibility.put(Keywords.ISOLOCALDATE, TEST_BIRTHDAY);
+
+		Map<Terms, List<Map<Keywords, String>>> birthdayPossibilities = new HashMap<>();
+		birthdayPossibilities.put(Terms.BIRTHDAY, Arrays.asList(birthdayPossibility));
+
+		assertEquals(birthdayPossibilities, this.analyzer.analyze(TEST_BIRTHDAY));
+
+		assertEquals(new HashMap<>(), this.analyzer.analyze("1980-13-30"));
 	}
 }

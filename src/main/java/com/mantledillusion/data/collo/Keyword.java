@@ -41,6 +41,23 @@ public interface Keyword {
 	String getMatcher();
 
 	/**
+	 * Returns whether the given segment out of an input that matches the regular expression returned by
+	 * {@link #getMatcher()} verifiably represents this keyword.
+	 * <p>
+	 * Useful if this keyword cannot be solely matched by a regular expression, for example if the keyword is a valid
+	 * timestamp of a certain format, an email address or an enumerated value.
+	 * <p>
+	 * Returns true by default, causing all segments that match the keyword's regular expression to also be verified
+	 * representations of the keyword.
+ 	 *
+	 * @param segment The segment of the input that matched the keyword; might <b>not</b> be null.
+	 * @return True if the given segment is a verified representation of the keyword, false otherwise
+	 */
+	default boolean verify(String segment) {
+		return true;
+	}
+
+	/**
 	 * Returns the weight used by the {@link KeywordAnalyzer} to sort analyzed keyword sets in descending manner, sets
 	 * of higher summed weight will appear first in analysis results.
 	 * <p>
